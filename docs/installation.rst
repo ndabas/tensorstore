@@ -146,6 +146,19 @@ The build is affected by the following environment variables:
    not be earlier than ``10.14``.  If not specified, defaults to the same macOS
    version required by the Python binary itself, or ``10.14`` if later.
 
+.. envvar:: TENSORSTORE_WINDOWS_ARM64_CLANG_CL
+
+   Windows ARM64 only.  Controls whether zlib and dav1d are built with
+   clang-cl, which is required for their ARM64 SIMD optimizations; the rest of
+   the build uses MSVC.  If unset or ``auto``, clang-cl is used when found,
+   either from :envvar:`BAZEL_LLVM` or the Visual Studio "C++ Clang Compiler
+   for Windows" component.  ``1`` requires clang-cl and ``0`` disables its use.
+
+.. envvar:: BAZEL_LLVM
+
+   Path to the LLVM installation directory (containing ``bin\clang-cl.exe``)
+   used by :envvar:`TENSORSTORE_WINDOWS_ARM64_CLANG_CL`.
+
 .. envvar:: TENSORSTORE_PREBUILT_DIR
 
    If specified, building is skipped, and instead ``setup.py`` expects to find
@@ -334,6 +347,10 @@ following C++ compilers:
 - GCC 12 or later (Linux)
 - Clang 16 or later (Linux)
 - Microsoft Visual Studio 2022 version 17.8 (MSVC 14.38) or later
+  (Windows x86_64 and ARM64; on ARM64, install the MSVC ARM64 build tools
+  and use a native ARM64 Python.  The "C++ Clang Compiler for Windows"
+  component is also recommended; see
+  :envvar:`TENSORSTORE_WINDOWS_ARM64_CLANG_CL`.)
 - Mingw64 GCC 13 or later (Windows); CMake only, Bazel is not supported, and
   ``lld`` is recommended over ``ld`` for speed.
 - Apple Xcode 15.0 or later
