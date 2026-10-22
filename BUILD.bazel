@@ -1,4 +1,5 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@tensorstore//bazel:utils.bzl", "emit_os_cpu_compiler_group")
 
 package(default_visibility = ["//visibility:public"])
@@ -170,5 +171,27 @@ selects.config_setting_group(
     match_any = [
         ":compiler_gcc",
         ":compiler_clang",
+    ],
+)
+
+# When targeting Windows arm64 with MSVC, builds third-party libraries whose
+# arm64 SIMD code requires a GCC-compatible compiler or assembler (currently
+# zlib and dav1d) with clang-cl instead.  Requires clang-cl, configured via
+# `--repo_env=BAZEL_LLVM=<path to LLVM>`.
+bool_flag(
+    name = "windows_arm64_clang_cl_simd",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "windows_arm64_clang_cl_simd_enabled",
+    flag_values = {":windows_arm64_clang_cl_simd": "true"},
+)
+
+selects.config_setting_group(
+    name = "use_windows_arm64_clang_cl_simd",
+    match_all = [
+        ":windows_arm64_msvc",
+        ":windows_arm64_clang_cl_simd_enabled",
     ],
 )

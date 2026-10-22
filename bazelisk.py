@@ -291,13 +291,18 @@ def get_supported_machine_archs(version, operating_system):
             # Linux arm64 was supported since 3.4.0.
             # Darwin arm64 was supported since 4.1.0.
             supported_machines.append("arm64")
+        elif operating_system == "windows" and (
+            major > 5 or major == 5 and minor >= 4
+        ):
+            # Windows arm64 was supported since 5.4.0.
+            supported_machines.append("arm64")
         if (
             operating_system == "linux"
             and (major > 6 or (major == 6 and minor >= 1))
         ):
             # Linux ppc64le was supported since 6.1.0.
             supported_machines.append("ppc64le")
-    elif operating_system in ("darwin", "linux"):
+    elif operating_system in ("darwin", "linux", "windows"):
         # This is needed to run bazelisk_test.sh on Linux and Darwin arm64 machines, which are
         # becoming more and more popular.
         # It works because all recent commits of Bazel support arm64 on Darwin and Linux.

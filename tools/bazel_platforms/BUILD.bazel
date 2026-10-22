@@ -8,3 +8,27 @@ platform(
         "@platforms//cpu:x86_64",
     ],
 )
+
+# Target platform used to build selected libraries with clang-cl on Windows
+# arm64; see `//:windows_arm64_clang_cl_simd`.
+platform(
+    name = "windows_arm64_clang_cl",
+    constraint_values = [
+        "@bazel_tools//tools/cpp:clang-cl",
+        "@platforms//os:windows",
+        "@platforms//cpu:arm64",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+toolchain(
+    name = "windows_arm64_clang_cl_toolchain",
+    exec_compatible_with = ["@platforms//os:windows"],
+    target_compatible_with = [
+        "@bazel_tools//tools/cpp:clang-cl",
+        "@platforms//os:windows",
+        "@platforms//cpu:arm64",
+    ],
+    toolchain = "@local_config_cc//:cc-compiler-arm64_windows-clang-cl",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+)

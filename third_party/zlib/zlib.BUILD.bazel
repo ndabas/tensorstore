@@ -1,6 +1,7 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@tensorstore//bazel:cc_platform_transition.bzl", "cc_platform_transition")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -13,9 +14,20 @@ cc_library(
         "zlib.h",
     ],
     defines = ["CHROMIUM_ZLIB_NO_CHROMECONF"],
-    implementation_deps = [":zlib_impl"],
+    implementation_deps = select({
+        "@tensorstore//:use_windows_arm64_clang_cl_simd": [":zlib_impl_clang_cl"],
+        "//conditions:default": [":zlib_impl"],
+    }),
     includes = ["."],  # for include <zlib.h>
     visibility = ["//visibility:public"],
+)
+
+# Builds zlib_impl with clang-cl to enable the arm64 SIMD code, which MSVC
+# cannot compile.
+cc_platform_transition(
+    name = "zlib_impl_clang_cl",
+    dep = ":zlib_impl",
+    platform = "@tensorstore//tools/bazel_platforms:windows_arm64_clang_cl",
 )
 
 ###############################################
@@ -28,7 +40,6 @@ _SIMD_SRCS = [
     "contrib/optimizations/inffast_chunk.h",
     "contrib/optimizations/inflate.c",
     "cpu_features.c",
-    "cpu_features.h",
     "crc_folding.c",
     "crc32_simd.c",
     "crc32_simd.h",
@@ -53,7 +64,7 @@ cc_library(
         "uncompr.c",
         "zutil.c",
     ] + select({
-        "@platforms//cpu:arm64": _SIMD_SRCS,
+        ":have_arm64_simd": _SIMD_SRCS,
         "@platforms//cpu:x86_64": _SIMD_SRCS,
         "//conditions:default": [
             "inflate.c",
@@ -61,6 +72,7 @@ cc_library(
     }),
     hdrs = [
         "contrib/optimizations/insert_string.h",
+        "cpu_features.h",
         "crc32.h",
         "deflate.h",
         "gzguts.h",
@@ -105,7 +117,7 @@ cc_library(
         ],
     }),
     deps = select({
-        "@platforms//cpu:arm64": [":zlib_defines_arm"],
+        ":have_arm64_simd": [":zlib_defines_arm"],
         "@platforms//cpu:x86_64": [":zlib_defines_x86"],
         "//conditions:default": [":zlib_defines_common"],
     }),
@@ -180,10 +192,17 @@ cc_library(
     ],
     defines = [
         "CHROMIUM_ZLIB_NO_CHROMECONF",
-        "HAVE_UNISTD_H",
-        "HAVE_STDINT_H",
-        "HAVE_STDDEF_H",
-    ],
+    ] + select({
+        "@platforms//os:windows": [
+            "_CRT_SECURE_NO_DEPRECATE",
+            "_CRT_NONSTDC_NO_DEPRECATE",
+        ],
+        "//conditions:default": [
+            "HAVE_UNISTD_H",
+            "HAVE_STDINT_H",
+            "HAVE_STDDEF_H",
+        ],
+    }),
 )
 
 # Constraint that indicates whether gcc-style flags should be used.
@@ -205,6 +224,13 @@ alias(
         # Otherwise condition on arm64.
         "//conditions:default": "@platforms//cpu:arm64",
     }),
+)
+
+# Chromium zlib's arm64 SIMD code only supports GCC-compatible compilers, so
+# MSVC on arm64 uses the portable implementation.
+alias(
+    name = "have_arm64_simd",
+    actual = ":use_arm64_gcc_flags",
 )
 
 alias(

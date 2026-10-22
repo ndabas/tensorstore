@@ -94,6 +94,7 @@ _CMAKE_SYSTEM_PROCESSOR_VALUES: dict[str, ValueList] = {
 
 _CMAKE_SYSTEM_NAME_AND_PROCESSOR_VALUES: dict[tuple[str, str], ValueList] = {
     ("Windows", "AMD64"): [("cpu", "x64_windows")],
+    ("Windows", "ARM64"): [("cpu", "arm64_windows")],
     ("QNX", "x86_64"): [("cpu", "x64_qnx")],
 }
 

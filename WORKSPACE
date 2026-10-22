@@ -90,3 +90,7 @@ llvm_register_toolchains()
 
 # Register the default @rules_nasm toolchain.
 register_toolchains("@rules_nasm//nasm/toolchain")
+
+# clang-cl toolchain for Windows arm64, used only for targets built for
+# //tools/bazel_platforms:windows_arm64_clang_cl.
+register_toolchains("//tools/bazel_platforms:windows_arm64_clang_cl_toolchain")

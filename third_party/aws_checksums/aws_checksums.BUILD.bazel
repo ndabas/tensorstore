@@ -45,7 +45,7 @@ cc_library(
         ],
         "//conditions:default": [],
     }) + select({
-        ":use_arm64_msvc_flags": ["/arch:arm8.1"],
+        ":use_arm64_msvc_flags": ["/arch:armv8.1"],
         "//conditions:default": [],
     }) + select({
         ":use_arm64_gcc_flags": [

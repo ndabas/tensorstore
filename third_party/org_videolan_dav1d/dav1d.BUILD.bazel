@@ -7,6 +7,7 @@ load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_nasm//nasm:nasm_cc_library.bzl", "nasm_cc_library")
+load("@tensorstore//bazel:cc_platform_transition.bzl", "cc_platform_transition")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -16,11 +17,27 @@ exports_files(["COPYING"])
 
 cc_library(
     name = "dav1d",
+    visibility = ["//visibility:public"],
+    deps = select({
+        "@tensorstore//:use_windows_arm64_clang_cl_simd": [":dav1d_clang_cl"],
+        "//conditions:default": [":dav1d_impl"],
+    }),
+)
+
+# Builds dav1d with clang-cl, which can assemble the arm64 assembly that MSVC
+# cannot.
+cc_platform_transition(
+    name = "dav1d_clang_cl",
+    dep = ":dav1d_impl",
+    platform = "@tensorstore//tools/bazel_platforms:windows_arm64_clang_cl",
+)
+
+cc_library(
+    name = "dav1d_impl",
     linkopts = select({
         "@platforms//os:windows": [],
         "//conditions:default": ["-ldl"],
     }),
-    visibility = ["//visibility:public"],
     deps = [
         ":dav1d_16bit",
         ":dav1d_8bit",
@@ -76,7 +93,8 @@ DAV1D_SRCS = glob(
     "@platforms//os:windows": glob(["src/win32/*.c"]),
     "//conditions:default": [],
 }) + select({
-    "@platforms//cpu:arm64": ARM_ASM_SRCS,
+    ":use_arm64_asm": ARM_ASM_SRCS,
+    ":use_arm64_noasm": [],
     "@platforms//cpu:ppc": PPC_ASM_SRCS,
     "@platforms//cpu:x86_64": glob(
         ["src/x86/*.c"],
@@ -130,6 +148,7 @@ GCC_CLANG_COPTS = [
 
 COPTS = select({
     ":compiler_msvc": MSVC_COPTS,
+    "@rules_cc//cc/compiler:clang-cl": MSVC_COPTS,
     "//conditions:default": GCC_CLANG_COPTS,
 }) + select({
     "@platforms//cpu:arm64": ["-DNEON_INTRINSICS"],
@@ -313,6 +332,11 @@ ARM64_CONFIG_H = [
     "",
 ]
 
+ARM64_NOASM_CONFIG_H = [
+    "#define HAVE_ASM 0" if line == "#define HAVE_ASM 1" else line
+    for line in ARM64_CONFIG_H
+]
+
 PPC_CONFIG_H = [
     "#define ARCH_AARCH64 0",
     "#define ARCH_ARM 0",
@@ -356,7 +380,8 @@ CONFIG_END_H = [
 
 CONFIG_H = CONFIG_START_H + select({
     "@platforms//cpu:x86_64": X86_64_CONFIG_H,
-    "@platforms//cpu:arm64": ARM64_CONFIG_H,
+    ":use_arm64_asm": ARM64_CONFIG_H,
+    ":use_arm64_noasm": ARM64_NOASM_CONFIG_H,
     "@platforms//cpu:ppc": PPC_CONFIG_H,
 }) + select({
     "@platforms//os:macos": DARWIN_CONFIG_H,
@@ -373,4 +398,23 @@ write_file(
 alias(
     name = "compiler_msvc",
     actual = "@rules_cc//cc/compiler:msvc-cl",
+)
+
+# The arm64 assembly uses GNU assembler syntax, which the MSVC toolchain cannot
+# assemble, so MSVC arm64 builds use the C implementation unless built with
+# clang-cl via `@tensorstore//:windows_arm64_clang_cl_simd`.
+alias(
+    name = "use_arm64_asm",
+    actual = select({
+        ":compiler_msvc": "@platforms//:incompatible",
+        "//conditions:default": "@platforms//cpu:arm64",
+    }),
+)
+
+alias(
+    name = "use_arm64_noasm",
+    actual = select({
+        ":compiler_msvc": "@platforms//cpu:arm64",
+        "//conditions:default": "@platforms//:incompatible",
+    }),
 )

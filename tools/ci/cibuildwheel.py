@@ -256,6 +256,9 @@ def run(args, extra_args):
     bazel_startup_options.append(
         "--output_base=" + pathlib.Path.home().drive + "/Out"
     )
+    # Fail rather than build a Windows arm64 wheel without zlib and dav1d SIMD
+    # optimizations if clang-cl is unavailable.
+    cibw_environment["TENSORSTORE_WINDOWS_ARM64_CLANG_CL"] = "1"
 
   # macOS or Windows: build is performed without a container.
   cibw_environment["BAZELISK_HOME"] = fix_path(bazelisk_home)

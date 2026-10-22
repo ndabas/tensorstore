@@ -201,6 +201,15 @@ alias(
     actual = "@rules_cc//cc/compiler:msvc-cl",
 )
 
+# MSVC does not accept -march; its arm64 intrinsics are always available.
+alias(
+    name = "use_arm64_gcc_flags",
+    actual = select({
+        ":compiler_msvc": "@platforms//:incompatible",
+        "//conditions:default": "@platforms//cpu:arm64",
+    }),
+)
+
 # Constraints that indicates whether avx2 intrinsics can be used (subject to
 # runtime CPU detection).
 #
@@ -253,11 +262,11 @@ LIBAOM_COPTS = select({
         "-Wno-stringop-overflow",
     ],
 }) + select({
-    "@platforms//cpu:arm64": [
-        "-DNEON_INTRINSICS",
-        "-march=armv8-a+crc",
-    ],
+    "@platforms//cpu:arm64": ["-DNEON_INTRINSICS"],
     # armv7 may need -fpu=neon as well.
+    "//conditions:default": [],
+}) + select({
+    ":use_arm64_gcc_flags": ["-march=armv8-a+crc"],
     "//conditions:default": [],
 }) + select({
     "@platforms//os:macos": [
@@ -498,7 +507,10 @@ cc_library(
         "av1/common/arm/resize_neon_dotprod.c",
         "av1/encoder/arm/temporal_filter_neon_dotprod.c",
     ],
-    copts = LIBAOM_COPTS + ["-march=armv8.2-a+dotprod"],
+    copts = LIBAOM_COPTS + select({
+        ":use_arm64_gcc_flags": ["-march=armv8.2-a+dotprod"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":config",
     ],
@@ -516,7 +528,10 @@ cc_library(
         "av1/common/arm/resize_neon_i8mm.c",
         "av1/common/arm/warp_plane_neon_i8mm.c",
     ],
-    copts = LIBAOM_COPTS + ["-march=armv8.2-a+dotprod+i8mm"],
+    copts = LIBAOM_COPTS + select({
+        ":use_arm64_gcc_flags": ["-march=armv8.2-a+dotprod+i8mm"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":config",
     ],
